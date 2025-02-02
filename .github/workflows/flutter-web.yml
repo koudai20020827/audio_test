@@ -1,0 +1,61 @@
+name: Deploy Flutter Web PWA to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # メインブランチへのプッシュ時にトリガー
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04 # Ubuntu 20.04環境でビルド
+
+    steps:
+      # 1. リポジトリのコードをチェックアウト
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Flutterをセットアップ（バージョン指定）
+      - name: Set up Flutter 3.27.2
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.2"
+
+      # 3. Flutterの依存関係をキャッシュ
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-cache-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-cache-
+
+      # 4. 依存関係をインストール
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 5. Flutter Webアプリをビルド
+      - name: Build the web app as PWA
+        run: flutter build web
+
+      # 6. ビルドディレクトリを確認（デバッグ用）
+      - name: List build directory
+        run: ls -la ./build/web
+
+      # 7. PWA関連ファイルの確認
+      - name: Verify PWA files
+        run: |
+          if [ ! -f "./build/web/manifest.json" ]; then
+            echo "Error: manifest.json not found."
+            exit 1
+          fi
+          if [ ! -f "./build/web/flutter_service_worker.js" ]; then
+            echo "Error: flutter_service_worker.js not found."
+            exit 1
+          fi
+
+      # 8. GitHub Pagesにデプロイ
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.PWAGITHUBACTION }} # トークン名を明確に変更
+          publish_dir: ./build/web
